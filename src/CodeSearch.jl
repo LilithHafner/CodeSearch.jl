@@ -323,7 +323,8 @@ Base.findall(needle::Pattern, haystack::AbstractString) = indices.(eachmatch(nee
 function Base.show(io::IO, m::Pattern)
     print(io, "j\"")
     str = sprint(print, Expr(m._internal.syntax_node))
-    str = replace(str, '*' => "\\*", string(m._internal.wildcard_symbol) => '*')
+    str = replace(str, '*' => "\\*")
+    str = replace(str, string(m._internal.wildcard_symbol) => '*')
     print(io, str)
     print(io, "\"")
 end
