@@ -10,16 +10,19 @@ export @j_str, indices
 ############################################################################################
 
 """
-    Match <: AbstractMatch
+    struct Match <: AbstractMatch
+        syntax_node::JuliaSyntax.SyntaxNode
+        captures::Vector{JuliaSyntax.SyntaxNode}
+    end
 
-Represents a single match to a `Pattern`, typically created from the `eachmatch` or
+Represents a single match to a [`Pattern`](@ref), typically created from the `eachmatch` or
 `match` function.
 
-The `syntax_node` field stores the `JuliaSyntax.SyntaxNode` that matched the
-`Pattern`, and the `captures` field stores the `SyntaxNode`s that fill match each
-wildcard in the `Pattern`, indexed in the order they appear in the `Pattern`.
+The `syntax_node` field stores the `SyntaxNode` that matched the
+[`Pattern`](@ref) and the `captures` field stores the `SyntaxNode`s that fill match each
+wildcard in the [`Pattern`](@ref), indexed in the order they appear.
 
-Methods that accept `Match` objects are defined for `Expr`, `JuliaSyntax.SyntaxNode`,
+Methods that accept `Match` objects are defined for `Expr`, `SyntaxNode`,
 `AbstractString`, [`indices`](@ref), and `getindex`.
 
 # Examples
@@ -53,11 +56,8 @@ end
 """
     Pattern <: AbstractPattern
 
-A struct that represents a julia expression with holes. The expression is stored as an
-ordinary `JuliaSyntax.SyntaxNode` in the `syntax_node` field. Holes in that expression are
-represented by the symbol stored in the `hole` field. For example, the expression
-`a + (b + *)` might be stored as `Pattern((call-i a + (call-i b + hole)), :hole)`. When
-matching `Pattern`s, it is possilbe for multiple matches to nest within one another.
+A struct that represents a Julia expression with wildcards. When matching `Pattern`s, it is
+possilbe for multiple matches to nest within one another.
 
 The fields and constructor of this struct are not part of the public API. See
 [`@j_str`](@ref) and [`pattern`](@ref) for the public API for creating
@@ -65,6 +65,15 @@ The fields and constructor of this struct are not part of the public API. See
 
 Methods accepting `Pattern` objects are defined for `eachmatch`, `match`,
 `findall`, `findfirst`, `findlast`, `occursin`, and `count`.
+
+# Extended Help
+
+The following are implmenetation details:
+
+The expression is stored as an ordinary `SyntaxNode` in the internal
+`syntax_node` field. Wildcards in that expression are represented by the symbol stored in
+the internal `hole_symbol` field. For example, the expression `a + (b + *)` might be stored
+as `Pattern((call-i a + (call-i b + hole)), :hole)`.
 """
 struct Pattern <: AbstractPattern
     _internal::NamedTuple{(:syntax_node, :hole_symbol), Tuple{SyntaxNode, Symbol}}
@@ -75,7 +84,7 @@ end
 """
     j"str" -> Pattern
 
-Construct a `Pattern`, such as j"a + (b + *)" that matches Julia code.
+Construct a `Pattern`, such as `j"a + (b + *)"` that matches Julia code.
 
 The `*` character is a wildcard that matches any expression, and matching is performed
 insensitive of whitespace and comments. Only the characters `"` and `*` must be escaped,
@@ -91,9 +100,6 @@ j"a + (b + *)"
 
 julia> match(j"(b + *)", "(b + 6)")
 CodeSearch.Match((call-i b + 6), captures=[6])
-
-julia> match(j"(* + *) \\* *", "(a+b)*(d+e)")
-CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), captures=[a, b, (call-i d + e)])
 
 julia> findall(j"* + *", "(a+b)+(d+e)")
 3-element Vector{UnitRange{Int64}}:
@@ -113,6 +119,9 @@ julia> eachmatch(j"*(\\"hello world\\")", "print(\\"hello world\\"), display(\\"
 
 julia> count(j"*(*)", "a(b(c))")
 2
+
+julia> match(j"(* + *) \\* *", "(a+b)*(d+e)")
+CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), captures=[a, b, (call-i d + e)])
 ```
 """
 macro j_str(str)
@@ -134,9 +143,6 @@ j"a + (b + *)"
 julia> match(pattern("(b + *)"), "(b + 6)")
 CodeSearch.Match((call-i b + 6), captures=[6])
 
-julia> match(pattern("(* + *) \\\\* *"), "(a+b)*(d+e)")
-CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), captures=[a, b, (call-i d + e)])
-
 julia> findall(pattern("* + *"), "(a+b)+(d+e)")
 3-element Vector{UnitRange{Int64}}:
  1:11
@@ -155,6 +161,9 @@ julia> eachmatch(pattern("*(\\"hello world\\")"), "print(\\"hello world\\"), dis
 
 julia> count(pattern("*(*)"), "a(b(c))")
 2
+
+julia> match(pattern("(* + *) \\\\* *"), "(a+b)*(d+e)")
+CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), captures=[a, b, (call-i d + e)])
 ```
 """
 function pattern(str::AbstractString)
@@ -176,10 +185,10 @@ end
     prepare_holes(str) -> (new_str, hole_str)
 
 
-Replace `*` with an identifier that does not occur in `str` (preferrably "hole") and return
-the new string and the identifier. `*` may be escaped, and the new identifier is padded with
-spaces only when necessary to prevent it from parsing together with characters before or
-after it.
+Replace `*` with an identifier that does not occur in `str` (preferrably `"hole"`) and
+return the new string and the identifier. `*` may be escaped, and the new identifier is
+padded with spaces only when necessary to prevent it from parsing together with characters
+before or after it.
 """
 function prepare_holes(str)
     hole_str = gen_hole(str)
@@ -267,7 +276,7 @@ maybe_last(x) = isempty(x) ? nothing : last(x)
 """
     indices(m)
 
-Return the indices of a source datastructure that a view is derived from.
+Return the indices into a source datastructure that a view is derived from.
 
 # Examples
 ```jldoctest
