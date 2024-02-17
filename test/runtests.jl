@@ -53,4 +53,29 @@ using Aqua
                 "hole2, hole3, hole4, hole5, hole6, hole7, hole8, hole9, hole10"
             ) === "hole11"
     end
+    @testset "show" begin
+        x = j"a + (b + *) \* hole"
+        @test repr(eval(Meta.parse(repr(x)))) == repr(x) == "j\"a + (b + *) \\* hole\""
+        @test Expr(x.expr) == Expr(eval(Meta.parse(repr(x))).expr)
+        @test x.hole == eval(Meta.parse(repr(x))).hole
+    end
+
+    @testset "is_match!" begin
+        holes = CodeSearch.SyntaxNode[]
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b")) === true
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "b + b")) === false
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b + c")) === false
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + (b + c)")) === true
+        @test Expr.(holes) == [:b, :(b + c)]
+    end
+
+    @testset "combined" begin
+        @test Expr(only(CodeSearch.find_matches(j"f(*)", "f(g(x))"))[1]) == :(g(x))
+    end
+
+    @testset "j_str" begin
+        @test repr(j"* !== nothing") == "j\"* !== nothing\"" # Start with *
+        @test Expr(j"a\*b".expr) == :(a*b)
+        @test_broken Expr(j"a*b".expr) != :aholeb # but it still reprs fine :(!
+    end
 end

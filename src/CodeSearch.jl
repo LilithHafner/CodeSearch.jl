@@ -36,9 +36,6 @@ end
 macro j_str(str)
     SearchPattern(str)
 end
-# @test repr(j"* !== nothing") == "j\"* !== nothing\"" # Start with *
-# @test Expr(j"a\*b".expr) == :(a*b)
-# @test_broken Expr(j"a*b".expr) != :aholeb # but it still reprs fine :(!
 
 struct Match
     expr::SyntaxNode
@@ -47,7 +44,6 @@ end
 
 find_matches(needle::SearchPattern, haystack::AbstractString) =
     find_matches(needle, parseall(SyntaxNode, haystack, ignore_errors=true))
-# @test Expr(only(CodeSearch.find_matches(j"f(*)", "f(g(x))"))[1]) == :(g(x))
 
 find_matches(needle::SearchPattern, haystack::SyntaxNode) =
     find_matches!(Match[], SyntaxNode[], needle, haystack)
@@ -76,10 +72,6 @@ function is_match!(holes, hole::Symbol, needle::SyntaxNode, haystack::SyntaxNode
     axes(needle.children) == axes(haystack.children) || return false
     all(is_match!(holes, hole, n, h) for (n,h) in zip(needle.children, haystack.children))
 end
-# @test is_match(:hole, j"a + *".expr, parsestmt(SyntaxNode, "a + b")) === true
-# @test is_match(:hole, j"a + *".expr, parsestmt(SyntaxNode, "b + b")) === false
-# @test is_match(:hole, j"a + *".expr, parsestmt(SyntaxNode, "a + b + c")) === false
-# @test is_match(:hole, j"a + *".expr, parsestmt(SyntaxNode, "a + (b + c)")) === true
 
 maybe_first(x) = isempty(x) ? nothing : first(x)
 maybe_last(x) = isempty(x) ? nothing : last(x)
@@ -120,10 +112,6 @@ function Base.show(io::IO, m::SearchPattern)
     print(io, str)
     print(io, "\"")
 end
-# x = j"a + (b + *) \* hole"
-# @test repr(eval(Meta.parse(repr(x)))) == repr(x) == "j\"a + (b + *) \\* hole\""
-# @test Expr(x.expr) == Expr(eval(Meta.parse(repr(x))).expr)
-# @test x.hole == eval(Meta.parse(repr(x))).hole
 
 function Base.show(io::IO, m::Match)
     if get(io, :typeinfo, nothing) != Match
