@@ -141,7 +141,18 @@ using Aqua
             @test isequal(a, b)
             @test !isequal(a, d)
 
-            @test_broken match(a, haystack) == match(b, haystack)
+            @test match(a, haystack) != match(d, haystack)
+
+            # I know it's wierd, but the only reason we have semantic equality for patterns
+            # is that they are indistinguishable because they have a small accessor API.
+            # Two patterns are equal if they match the same things.
+
+            # However, match objects can be accessed in all sorts of interesting ways, and
+            # because we don't know which properties interest a user and there is no
+            # canonical notion of identity, we keep the default egal behavior.
+            m = match(a, haystack)
+            @test match(a, haystack) != m
+            @test m == m
         end
     end
 end
