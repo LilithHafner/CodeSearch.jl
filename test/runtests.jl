@@ -106,7 +106,10 @@ using Aqua
                 println(\"Hello, world!\")
             end"""
             @test AbstractString(m5) == "g( )"
-            @test_broken AbstractString(m3[1]) # AbstractString(::SyntaxNode) is piracy.
+
+            # AbstractString(::SyntaxNode) is piracy.
+            # Reported upstream at https://github.com/JuliaLang/JuliaSyntax.jl/issues/418
+            @test_broken AbstractString(m3[1])
 
             em = eachmatch(j"f()", haystack)
             @test length(em) == count(j"f()", haystack) == 3
