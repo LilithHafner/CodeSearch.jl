@@ -4,8 +4,10 @@ using Aqua
 
 @testset "CodeSearch.jl" begin
     @testset "code quality (Aqua.jl)" begin
-        Aqua.test_all(CodeSearch, deps_compat=false)
+        Aqua.test_all(CodeSearch, deps_compat=false, ambiguities=false)
         Aqua.test_deps_compat(CodeSearch, check_extras=false)
+        # The method error from an ambiguity is appropriate for these:
+        Aqua.test_ambiguities(CodeSearch, exclude=[findall, count])
     end
 
     @testset "occursin" begin
@@ -57,7 +59,7 @@ using Aqua
         x = j"a + (b + *) \* hole"
         @test repr(eval(Meta.parse(repr(x)))) == repr(x) == "j\"a + (b + *) \\* hole\""
         @test Expr(x.syntax_node) == Expr(eval(Meta.parse(repr(x))).syntax_node)
-        @test x.hole == eval(Meta.parse(repr(x))).hole
+        @test x.hole_symbol == eval(Meta.parse(repr(x))).hole_symbol
     end
 
     @testset "is_match!" begin
