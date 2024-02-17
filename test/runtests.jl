@@ -114,6 +114,11 @@ using Aqua
             @test indices(em[begin]) == findfirst(j"f()", haystack)
             @test indices(em[end]) == findlast(j"f()", haystack)
             @test findfirst(j"blue + *", haystack) === findlast(j"blue + *", haystack) === nothing
+
+            haystack_parsed = CodeSearch.parseall(CodeSearch.SyntaxNode, haystack, ignore_errors=true)
+            for f in [occursin, eachmatch, findall, findfirst, findlast, count, match]
+                @test repr(f(j"f()", haystack_parsed)) == repr(f(j"f()", haystack))
+            end
         end
         @testset "showing patterns" begin
             x = j"a + (b + *) \* hole"
