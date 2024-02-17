@@ -20,7 +20,7 @@ The `syntax_node` field stores the `JuliaSyntax.SyntaxNode` that matched the
 wildcard in the `Pattern`, indexed in the order they appear in the `Pattern`.
 
 Methods that accept `Match` objects are defined for [`Expr`], [`JuliaSyntax.SyntaxNode`],
-[`String`], [`indices`](@ref), and [`getindex`].
+[`AbstractString`], [`indices`](@ref), and [`getindex`].
 
 # Examples
 ```jldoctest
@@ -38,7 +38,7 @@ line:col│ tree        │ file_name
 julia> Expr(m)
 :(√x)
 
-julia> String(m)
+julia> AbstractString(m)
 " √ x"
 
 julia> CodeSearch.indices(m)
@@ -256,7 +256,7 @@ indices(sn::SyntaxNode) = range(sn)
 indices(m::Match) = indices(m.syntax_node)
 
 Base.Expr(m::Match) = Expr(m.syntax_node)
-Base.String(m::Match) = m.syntax_node.data.source.code[indices(m.syntax_node)]
+Base.AbstractString(m::Match) = m.syntax_node.data.source.code[indices(m.syntax_node)]
 Base.getindex(m::Match, i::Int) = m.captures[i]
 
 Base.eachmatch(needle::Pattern, haystack) = find_matches(needle, haystack)

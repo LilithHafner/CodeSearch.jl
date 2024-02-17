@@ -100,13 +100,13 @@ using Aqua
             @test Expr(m4) == :(1 + 1)
             # m3 has line number nodes which won't align
 
-            @test String(m1) == "f()"
-            @test String(m4) == "1+1"
-            @test String(m3) == """function f()
+            @test AbstractString(m1) == "f()"
+            @test AbstractString(m4) == "1+1"
+            @test AbstractString(m3) == """function f()
                 println(\"Hello, world!\")
             end"""
-            @test String(m5) == "g( )"
-            @test_broken String(m3[1]) # String(::SyntaxNode) is piracy.
+            @test AbstractString(m5) == "g( )"
+            @test_broken AbstractString(m3[1]) # AbstractString(::SyntaxNode) is piracy.
 
             em = eachmatch(j"f()", haystack)
             @test length(em) == count(j"f()", haystack) == 3
