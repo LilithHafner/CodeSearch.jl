@@ -2,11 +2,11 @@ module CodeSearch
 
 using JuliaSyntax, Compat
 
-export code_search_pattern, @j_str, indices
-@compat public Match, Pattern
+export @j_str, indices
+@compat public Match, Pattern, pattern
 
 ############################################################################################
-#### Data structures and constructors (Match, Pattern, code_search_pattern, and @j_str) ####
+#### Data structures and constructors (Match, Pattern, pattern, and @j_str)             ####
 ############################################################################################
 
 """
@@ -60,7 +60,7 @@ represented by the symbol stored in the `hole` field. For example, the expressio
 matching `Pattern`s, it is possilbe for multiple matches to nest within one another.
 
 The fields and constructor of this struct are not part of the public API. See
-[`@j_str`](@ref) and [`code_search_pattern`](@ref) for the public API for creating
+[`@j_str`](@ref) and [`pattern`](@ref) for the public API for creating
 `Pattern`s.
 
 Methods accepting `Pattern` objects are defined for `eachmatch`, `match`,
@@ -81,7 +81,7 @@ The `*` character is a wildcard that matches any expression, and matching is per
 insensitive of whitespace and comments. Only the characters `"` and `*` must be escaped,
 and interpolation is not supported.
 
-See [`code_search_pattern`](@ref) for the function version of this macro if you need
+See [`pattern`](@ref) for the function version of this macro if you need
 interpolation.
 
 # Examples
@@ -115,45 +115,47 @@ julia> count(j"*(*)", "a(b(c))")
 2
 """
 macro j_str(str)
-    code_search_pattern(str)
+    pattern(str)
 end
 
 """
-    code_search_pattern(str::AbstractString) -> Pattern
+    pattern(str::AbstractString) -> Pattern
 
 Function version of the `j"str"` macro. See [`@j_str`](@ref) for documentation.
 
 # Examples
 ```jldoctest
-julia> code_search_pattern("a + (b + *)")
+julia> using CodeSearch: pattern
+
+julia> pattern("a + (b + *)")
 j"a + (b + *)"
 
-julia> match(code_search_pattern("(b + *)"), "(b + 6)")
+julia> match(pattern("(b + *)"), "(b + 6)")
 CodeSearch.Match((call-i b + 6), holes=[6])
 
-julia> match(code_search_pattern("(* + *) \\\\* *"), "(a+b)*(d+e)")
+julia> match(pattern("(* + *) \\\\* *"), "(a+b)*(d+e)")
 CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), holes=[a, b, (call-i d + e)])
 
-julia> findall(code_search_pattern("* + *"), "(a+b)+(d+e)")
+julia> findall(pattern("* + *"), "(a+b)+(d+e)")
 3-element Vector{UnitRange{Int64}}:
  1:11
  2:4
  8:10
 
-julia> match(code_search_pattern("(* + *) \\\\* *"), "(a-b)*(d+e)") # no match -> returns nothing
+julia> match(pattern("(* + *) \\\\* *"), "(a-b)*(d+e)") # no match -> returns nothing
 
-julia> occursin(code_search_pattern("(* + *) \\\\* *"), "(a-b)*(d+e)")
+julia> occursin(pattern("(* + *) \\\\* *"), "(a-b)*(d+e)")
 false
 
-julia> eachmatch(code_search_pattern("*(\\"hello world\\")"), "print(\\"hello world\\"), display(\\"hello world\\")")
+julia> eachmatch(pattern("*(\\"hello world\\")"), "print(\\"hello world\\"), display(\\"hello world\\")")
 2-element Vector{CodeSearch.Match}:
  Match((call print (string "hello world")), holes=[print])
  Match((call display (string "hello world")), holes=[display])
 
-julia> count(code_search_pattern("*(*)"), "a(b(c))")
+julia> count(pattern("*(*)"), "a(b(c))")
 2
 """
-function code_search_pattern(str::AbstractString)
+function pattern(str::AbstractString)
     hole_symbol = gen_hole(str)
     str = replace(str,
         r"^\*" => hole_symbol,
