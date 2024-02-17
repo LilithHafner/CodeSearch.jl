@@ -76,7 +76,7 @@ using Aqua
                                 g()
                             end", haystack)
             @test occursin(j"1 + 1 # Comments", haystack)
-            @test_broken !occursin(j"1 + 1 # Conts", haystack)
+            @test occursin(j"1 + 1 # Conts", haystack) # Comments and whitespace are ignored
         end
 
         @testset "assorted" begin
