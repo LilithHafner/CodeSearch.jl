@@ -46,7 +46,7 @@ struct Match
 end
 
 find_matches(needle::SearchPattern, haystack::AbstractString) =
-    find_matches(needle, parseall(SyntaxNode, haystack, ignore_error=true))
+    find_matches(needle, parseall(SyntaxNode, haystack, ignore_errors=true))
 # @test Expr(only(CodeSearch.find_matches(j"f(*)", "f(g(x))"))[1]) == :(g(x))
 
 find_matches(needle::SearchPattern, haystack::SyntaxNode) =
@@ -104,7 +104,9 @@ Base.occursin(needle::SearchPattern, haystack) = !isempty(eachmatch(needle, hays
 Base.findfirst(needle::SearchPattern, haystack) = maybe_first(findall(needle, haystack))
 Base.findlast(needle::SearchPattern, haystack) = maybe_last(findall(needle, haystack))
 
-Base.count(needle::SearchPattern, haystack) = length(eachmatch(needle, haystack))
+# Narrow type signature to avoid ambiguity with
+# count(f, A::Union{Base.AbstractBroadcasted, AbstractArray}; dims, init)
+Base.count(needle::SearchPattern, haystack::Union{AbstractString, SyntaxNode}) = length(eachmatch(needle, haystack))
 
 
 # TODO: semantic equality between SearchPatterns

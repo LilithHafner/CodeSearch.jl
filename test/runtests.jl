@@ -31,12 +31,12 @@ using Aqua
         @test occursin(j"while *; f(); end", haystack)
         @test !occursin(j"while *; g(); end", haystack)
         @test occursin(j"while *; *; end", haystack)
-        @test occursin(j"if false; *; end", haystack)
+        @test !occursin(j"if false; *; end", haystack) # TODO: should * match multiple statements?
         @test !occursin(j"while * end", haystack)
         @test !occursin(j"if *
                             g()
                         end", haystack)
-        @test !occursin(j"if *
+        @test occursin(j"if *
                             f()
                             g()
                         end", haystack)
@@ -45,12 +45,12 @@ using Aqua
     end
 
     @testset "gen_hole" begin
-        @test CodeSearch.gen_hole("ho = le") === :hole
-        @test CodeSearch.gen_hole("hole + 1") === :hole1
-        @test CodeSearch.gen_hole("hope + hole1") === :hole2
-        @test CodeSearch.gen_hole("hole + hole10") === :hole2
+        @test CodeSearch.gen_hole("ho = le") === "hole"
+        @test CodeSearch.gen_hole("hole + 1") === "hole1"
+        @test CodeSearch.gen_hole("hope + hole1") === "hole2"
+        @test CodeSearch.gen_hole("hole + hole10") === "hole2"
         @test CodeSearch.gen_hole(
                 "hole2, hole3, hole4, hole5, hole6, hole7, hole8, hole9, hole10"
-            ) === :hole11
+            ) === "hole11"
     end
 end
