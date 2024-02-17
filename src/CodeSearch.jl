@@ -5,7 +5,7 @@ using JuliaSyntax
 export SearchPattern, @j_str, holes
 
 struct SearchPattern
-    expr::SyntaxNode
+    syntax_node::SyntaxNode
     hole::Symbol
 end
 
@@ -26,11 +26,11 @@ function SearchPattern(str::AbstractString)
         "\\*" => '*')
     # "a*b\\*chole1" => "ahole2b*chole1"
 
-    expr = parseall(SyntaxNode, str)
-    if kind(expr) == K"toplevel" && length(expr.children) == 1
-        expr = only(expr.children)
+    syntax_node = parseall(SyntaxNode, str)
+    if kind(syntax_node) == K"toplevel" && length(syntax_node.children) == 1
+        syntax_node = only(syntax_node.children)
     end
-    SearchPattern(expr, Symbol(hole))
+    SearchPattern(syntax_node, Symbol(hole))
 end
 
 macro j_str(str)
@@ -38,7 +38,7 @@ macro j_str(str)
 end
 
 struct Match
-    expr::SyntaxNode
+    syntax_node::SyntaxNode
     holes::Vector{SyntaxNode}
 end
 
@@ -48,7 +48,7 @@ find_matches(needle::SearchPattern, haystack::AbstractString) =
 find_matches(needle::SearchPattern, haystack::SyntaxNode) =
     find_matches!(Match[], SyntaxNode[], needle, haystack)
 function find_matches!(matches, holes, needle::SearchPattern, haystack::SyntaxNode)
-    if is_match!(empty!(holes), needle.hole, needle.expr, haystack)
+    if is_match!(empty!(holes), needle.hole, needle.syntax_node, haystack)
         push!(matches, Match(haystack, copy(holes)))
     end
     if haystack.children !== nothing
@@ -82,9 +82,9 @@ maybe_last(x) = isempty(x) ? nothing : last(x)
 
 # JuliaSyntax.range === Base.range, but I want to be clear that the reason we are defining
 # a method for that function is that JuliaSyntax already defined a method for it.
-JuliaSyntax.range(m::Match) = JuliaSyntax.range(m.expr)
-JuliaSyntax.SyntaxNode(m::Match) = m.expr::SyntaxNode
-Base.Expr(m::Match) = Expr(m.expr)
+JuliaSyntax.range(m::Match) = JuliaSyntax.range(m.syntax_node)
+JuliaSyntax.SyntaxNode(m::Match) = m.syntax_node::SyntaxNode
+Base.Expr(m::Match) = Expr(m.syntax_node)
 holes(m::Match) = m.holes
 Base.getindex(m::Match, i::Int) = m.holes[i]
 
@@ -107,7 +107,7 @@ Base.count(needle::SearchPattern, haystack::Union{AbstractString, SyntaxNode}) =
 
 function Base.show(io::IO, m::SearchPattern)
     print(io, "j\"")
-    str = sprint(print, Expr(m.expr))
+    str = sprint(print, Expr(m.syntax_node))
     str = replace(str, '*' => "\\*", string(m.hole) => '*')
     print(io, str)
     print(io, "\"")
@@ -118,7 +118,7 @@ function Base.show(io::IO, m::Match)
         print(io, "CodeSearch.")
     end
     print(io, "Match(")
-    show(io, m.expr)
+    show(io, m.syntax_node)
     if !isempty(m.holes)
         print(io, ", holes=")
         show(IOContext(io, :typeinfo=>Vector{SyntaxNode}), m.holes)

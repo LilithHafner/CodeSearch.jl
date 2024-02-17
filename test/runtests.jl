@@ -56,16 +56,16 @@ using Aqua
     @testset "show" begin
         x = j"a + (b + *) \* hole"
         @test repr(eval(Meta.parse(repr(x)))) == repr(x) == "j\"a + (b + *) \\* hole\""
-        @test Expr(x.expr) == Expr(eval(Meta.parse(repr(x))).expr)
+        @test Expr(x.syntax_node) == Expr(eval(Meta.parse(repr(x))).syntax_node)
         @test x.hole == eval(Meta.parse(repr(x))).hole
     end
 
     @testset "is_match!" begin
         holes = CodeSearch.SyntaxNode[]
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b")) === true
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "b + b")) === false
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b + c")) === false
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".expr, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + (b + c)")) === true
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b")) === true
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "b + b")) === false
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b + c")) === false
+        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + (b + c)")) === true
         @test Expr.(holes) == [:b, :(b + c)]
     end
 
@@ -75,7 +75,7 @@ using Aqua
 
     @testset "j_str" begin
         @test repr(j"* !== nothing") == "j\"* !== nothing\"" # Start with *
-        @test Expr(j"a\*b".expr) == :(a*b)
-        @test_broken Expr(j"a*b".expr) != :aholeb # but it still reprs fine :(!
+        @test Expr(j"a\*b".syntax_node) == :(a*b)
+        @test_broken Expr(j"a*b".syntax_node) != :aholeb # but it still reprs fine :(!
     end
 end
