@@ -44,13 +44,13 @@ using Aqua
         @test_broken !occursin(j"1 + 1 # Conts", haystack)
     end
 
-    @testset "gen_unused_symbol" begin
-        @test CodeSearch.gen_unused_symbol(:(ho = le)) === :hole
-        @test CodeSearch.gen_unused_symbol(:(hole + 1)) === :hole1
-        @test CodeSearch.gen_unused_symbol(:(hole + hole1)) === :hole2
-        @test CodeSearch.gen_unused_symbol(:(hole + hole10)) === :hole1
-        @test CodeSearch.gen_unused_symbol(
-                :(hole, hole1, hole2, hole3, hole4, hole5, hole6, hole7, hole8, hole9, hole10)
+    @testset "gen_hole" begin
+        @test CodeSearch.gen_hole("ho = le") === :hole
+        @test CodeSearch.gen_hole("hole + 1") === :hole1
+        @test CodeSearch.gen_hole("hope + hole1") === :hole2
+        @test CodeSearch.gen_hole("hole + hole10") === :hole2
+        @test CodeSearch.gen_hole(
+                "hole2, hole3, hole4, hole5, hole6, hole7, hole8, hole9, hole10"
             ) === :hole11
     end
 end
