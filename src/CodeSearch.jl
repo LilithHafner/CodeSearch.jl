@@ -156,24 +156,58 @@ julia> count(pattern("*(*)"), "a(b(c))")
 2
 """
 function pattern(str::AbstractString)
-    hole_symbol = gen_hole(str)
-    str = replace(str,
-        r"^\*" => hole_symbol,
-        r"([^\\])\*" => SubstitutionString("\\1$hole_symbol"),
-        "\\*" => '*')
-    # "a*b\\*chole1" => "ahole2b*chole1"
+    str, hole_str = prepare_holes(str)
 
     syntax_node = parseall(SyntaxNode, str)
     if kind(syntax_node) == K"toplevel" && length(syntax_node.children) == 1
         syntax_node = only(syntax_node.children)
     end
-    _Pattern(syntax_node, Symbol(hole_symbol))
+    _Pattern(syntax_node, Symbol(hole_str))
 end
 
 
 ############################################################################################
 ####  Implmenetation of primary search functionality                                    ####
 ############################################################################################
+
+"""
+    prepare_holes(str) -> (new_str, hole_str)
+
+
+Replace `*` with an identifier that does not occur in `str` (preferrably "hole") and return
+the new string and the identifier. `*` may be escaped, and the new identifier is padded with
+spaces only when necessary to prevent it from parsing together with characters before or
+after it.
+"""
+function prepare_holes(str)
+    hole_str = gen_hole(str)
+    old = Vector{Char}(str) # Why be fast when you could be slow instead?
+    new = resize!(similar(old), 0)
+    hole_array = Vector{Char}(string(hole_str))
+    for i in eachindex(old)
+        char = old[i]
+        if char == '*'
+            if i == firstindex(old) || old[i-1] != '\\'
+                # Insert hole
+                if !isempty(new) && Base.is_id_char(last(new))
+                    # Add a space to separate the hole from the previous identifier
+                    # character and avoid something like a* -> ahole
+                    push!(new, ' ')
+                end
+                append!(new, hole_array)
+                if i+1 <= lastindex(old) && Base.is_id_char(old[i+1])
+                    push!(new, ' ')
+                end
+            else
+                # Escaped *, replace the \ with a *
+                new[end] = char
+            end
+        else
+            push!(new, char)
+        end
+    end
+    join(new), hole_str
+end
 
 """
     gen_hole(str, prefix="hole")

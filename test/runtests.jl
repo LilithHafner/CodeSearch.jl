@@ -36,7 +36,24 @@ using Aqua
         @testset "j_str" begin
             @test repr(j"* !== nothing") == "j\"* !== nothing\"" # Start with *
             @test Expr(j"a\*b"._internal.syntax_node) == :(a*b)
-            @test_broken Expr(j"a*b"._internal.syntax_node) != :aholeb # but it still reprs fine :(!
+        end
+
+        @testset "pattern" begin
+            @test_throws CodeSearch.JuliaSyntax.ParseError CodeSearch.pattern("a*b")
+            @test CodeSearch.pattern("a + * + b") == j"a + * + b"
+            @test_throws UndefVarError pattern("a + * + b")
+        end
+
+        @testset "prepare_holes" begin
+            @test CodeSearch.prepare_holes("a*b") == ("a hole b", "hole")
+            @test CodeSearch.prepare_holes("a*holeb") == ("a hole1 holeb", "hole1")
+            @test CodeSearch.prepare_holes("a*hole*b + hole1") == ("a hole2 hole hole2 b + hole1", "hole2")
+            @test CodeSearch.prepare_holes("a*b\\*chole1") == ("a hole2 b*chole1", "hole2")
+            @test CodeSearch.prepare_holes("1 \\* 2") == ("1 * 2", "hole")
+            @test CodeSearch.prepare_holes("1 \\ * 2") == ("1 \\ hole 2", "hole")
+            @test CodeSearch.prepare_holes("1 \\\\* 2") == ("1 \\* 2", "hole")
+            @test CodeSearch.prepare_holes("1 * 2") == ("1 hole 2", "hole")
+            @test CodeSearch.prepare_holes("function *() = * + hole12") == ("function hole2() = hole2 + hole12", "hole2")
         end
     end
 
