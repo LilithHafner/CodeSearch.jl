@@ -72,13 +72,13 @@ The following are implmenetation details:
 
 The expression is stored as an ordinary `SyntaxNode` in the internal
 `syntax_node` field. Wildcards in that expression are represented by the symbol stored in
-the internal `hole_symbol` field. For example, the expression `a + (b + *)` might be stored
-as `Pattern((call-i a + (call-i b + hole)), :hole)`.
+the internal `wildcard_symbol` field. For example, the expression `a + (b + *)` might be stored
+as `Pattern((call-i a + (call-i b + wildcard)), :wildcard)`.
 """
 struct Pattern <: AbstractPattern
-    _internal::NamedTuple{(:syntax_node, :hole_symbol), Tuple{SyntaxNode, Symbol}}
+    _internal::NamedTuple{(:syntax_node, :wildcard_symbol), Tuple{SyntaxNode, Symbol}}
     global _Pattern
-    _Pattern(syntax_node, hole_symbol) = new((; syntax_node, hole_symbol))
+    _Pattern(syntax_node, wildcard_symbol) = new((; syntax_node, wildcard_symbol))
 end
 
 """
@@ -167,13 +167,13 @@ CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), captures=[a, b, (call
 ```
 """
 function pattern(str::AbstractString)
-    str, hole_str = prepare_holes(str)
+    str, wildcard_str = prepare_wildcards(str)
 
     syntax_node = parseall(SyntaxNode, str)
     if kind(syntax_node) == K"toplevel" && length(syntax_node.children) == 1
         syntax_node = only(syntax_node.children)
     end
-    _Pattern(syntax_node, Symbol(hole_str))
+    _Pattern(syntax_node, Symbol(wildcard_str))
 end
 
 
@@ -182,30 +182,30 @@ end
 ############################################################################################
 
 """
-    prepare_holes(str) -> (new_str, hole_str)
+    prepare_wildcards(str) -> (new_str, wildcard_str)
 
 
-Replace `*` with an identifier that does not occur in `str` (preferrably `"hole"`) and
+Replace `*` with an identifier that does not occur in `str` (preferrably `"wildcard"`) and
 return the new string and the identifier. `*` may be escaped, and the new identifier is
 padded with spaces only when necessary to prevent it from parsing together with characters
 before or after it.
 """
-function prepare_holes(str)
-    hole_str = gen_hole(str)
+function prepare_wildcards(str)
+    wildcard_str = gen_wildcard(str)
     old = Vector{Char}(str) # Why be fast when you could be slow instead?
     new = resize!(similar(old), 0)
-    hole_array = Vector{Char}(string(hole_str))
+    wildcard_array = Vector{Char}(string(wildcard_str))
     for i in eachindex(old)
         char = old[i]
         if char == '*'
             if i == firstindex(old) || old[i-1] != '\\'
-                # Insert hole
+                # Insert wildcard
                 if !isempty(new) && Base.is_id_char(last(new))
-                    # Add a space to separate the hole from the previous identifier
-                    # character and avoid something like a* -> ahole
+                    # Add a space to separate the wildcard from the previous identifier
+                    # character and avoid something like a* -> awildcard
                     push!(new, ' ')
                 end
-                append!(new, hole_array)
+                append!(new, wildcard_array)
                 if i+1 <= lastindex(old) && Base.is_id_char(old[i+1])
                     push!(new, ' ')
                 end
@@ -217,15 +217,15 @@ function prepare_holes(str)
             push!(new, char)
         end
     end
-    join(new), hole_str
+    join(new), wildcard_str
 end
 
 """
-    gen_hole(str, prefix="hole")
+    gen_wildcard(str, prefix="wildcard")
 
 return a string starting with `prefix` that is not in `str`
 """
-function gen_hole(str, prefix="hole")
+function gen_wildcard(str, prefix="wildcard")
     occursin(prefix, str) || return prefix
     i = 1
     while occursin("$prefix$i", str)
@@ -240,7 +240,7 @@ find_matches(needle::Pattern, haystack::AbstractString) =
 find_matches(needle::Pattern, haystack::SyntaxNode) =
     find_matches!(Match[], SyntaxNode[], needle, haystack)
 function find_matches!(matches, captures, needle::Pattern, haystack::SyntaxNode)
-    if is_match!(empty!(captures), needle._internal.hole_symbol, needle._internal.syntax_node, haystack)
+    if is_match!(empty!(captures), needle._internal.wildcard_symbol, needle._internal.syntax_node, haystack)
         push!(matches, Match(haystack, copy(captures)))
     end
     if haystack.children !== nothing
@@ -251,8 +251,8 @@ function find_matches!(matches, captures, needle::Pattern, haystack::SyntaxNode)
     matches
 end
 
-function is_match!(captures, hole_symbol::Symbol, needle::SyntaxNode, haystack::SyntaxNode)
-    if kind(needle) == K"Identifier" && needle.data.val == hole_symbol
+function is_match!(captures, wildcard_symbol::Symbol, needle::SyntaxNode, haystack::SyntaxNode)
+    if kind(needle) == K"Identifier" && needle.data.val == wildcard_symbol
         push!(captures, haystack)
         return true
     end
@@ -262,7 +262,7 @@ function is_match!(captures, hole_symbol::Symbol, needle::SyntaxNode, haystack::
     needle.children === nothing && return false
     haystack.children === nothing && return false
     axes(needle.children) == axes(haystack.children) || return false
-    all(is_match!(captures, hole_symbol, n, h) for (n,h) in zip(needle.children, haystack.children))
+    all(is_match!(captures, wildcard_symbol, n, h) for (n,h) in zip(needle.children, haystack.children))
 end
 
 maybe_first(x) = isempty(x) ? nothing : first(x)
@@ -323,7 +323,7 @@ Base.findall(needle::Pattern, haystack::AbstractString) = indices.(eachmatch(nee
 function Base.show(io::IO, m::Pattern)
     print(io, "j\"")
     str = sprint(print, Expr(m._internal.syntax_node))
-    str = replace(str, '*' => "\\*", string(m._internal.hole_symbol) => '*')
+    str = replace(str, '*' => "\\*", string(m._internal.wildcard_symbol) => '*')
     print(io, str)
     print(io, "\"")
 end
@@ -347,31 +347,31 @@ end
 function Base.:(==)(a::Pattern, b::Pattern)
     kind(a._internal.syntax_node) == kind(b._internal.syntax_node) || return false
     if kind(a._internal.syntax_node) == K"Identifier"
-        a_hole = a._internal.syntax_node.data.val == a._internal.hole_symbol
-        b_hole = b._internal.syntax_node.data.val == b._internal.hole_symbol
-        a_hole && b_hole && return true
-        a_hole != b_hole && return false
+        a_wildcard = a._internal.syntax_node.data.val == a._internal.wildcard_symbol
+        b_wildcard = b._internal.syntax_node.data.val == b._internal.wildcard_symbol
+        a_wildcard && b_wildcard && return true
+        a_wildcard != b_wildcard && return false
     end
     a._internal.syntax_node.data.val == b._internal.syntax_node.data.val || return false
     a._internal.syntax_node.children === nothing && b._internal.syntax_node.children === nothing && return true
     a._internal.syntax_node.children === nothing && return false
     b._internal.syntax_node.children === nothing && return false
     axes(a._internal.syntax_node.children) == axes(b._internal.syntax_node.children) || return false
-    all(_Pattern(a_child, a._internal.hole_symbol) == _Pattern(b_child, b._internal.hole_symbol) for
+    all(_Pattern(a_child, a._internal.wildcard_symbol) == _Pattern(b_child, b._internal.wildcard_symbol) for
         (a_child,b_child) in zip(a._internal.syntax_node.children, b._internal.syntax_node.children))
 end
 
 const PATTERN_HASH = Sys.WORD_SIZE == 64 ? 0xc75fd9c0b0129c95 : 0x5770933b
 const HOLE_HASH = Sys.WORD_SIZE == 64 ? 0x12e261218f8c027e : 0xf5e30575
-Base.hash(p::Pattern, h::UInt) = _hash(p._internal.hole_symbol, p._internal.syntax_node, hash(h, PATTERN_HASH))
-function _hash(hole_symbol, syntax_node, h)
-    kind(syntax_node) == K"Identifier" && syntax_node.data.val == hole_symbol && return hash(h, HOLE_HASH)
+Base.hash(p::Pattern, h::UInt) = _hash(p._internal.wildcard_symbol, p._internal.syntax_node, hash(h, PATTERN_HASH))
+function _hash(wildcard_symbol, syntax_node, h)
+    kind(syntax_node) == K"Identifier" && syntax_node.data.val == wildcard_symbol && return hash(h, HOLE_HASH)
     h = hash(kind(syntax_node), h)
     h = hash(syntax_node.data.val, h)
     syntax_node.children === nothing && return h
     h = hash(length(syntax_node.children), h)
     for child in syntax_node.children
-        h = _hash(hole_symbol, child, h)
+        h = _hash(wildcard_symbol, child, h)
     end
     h
 end

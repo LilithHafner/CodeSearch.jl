@@ -10,23 +10,23 @@ using Aqua
         Aqua.test_ambiguities(CodeSearch, exclude=[findall, count])
     end
     @testset "unit tests" begin
-        @testset "gen_hole" begin
-            @test CodeSearch.gen_hole("ho = le") === "hole"
-            @test CodeSearch.gen_hole("hole + 1") === "hole1"
-            @test CodeSearch.gen_hole("hope + hole1") === "hole2"
-            @test CodeSearch.gen_hole("hole + hole10") === "hole2"
-            @test CodeSearch.gen_hole(
-                    "hole2, hole3, hole4, hole5, hole6, hole7, hole8, hole9, hole10"
-                ) === "hole11"
+        @testset "gen_wildcard" begin
+            @test CodeSearch.gen_wildcard("ho = le") === "wildcard"
+            @test CodeSearch.gen_wildcard("wildcard + 1") === "wildcard1"
+            @test CodeSearch.gen_wildcard("hope + wildcard1") === "wildcard2"
+            @test CodeSearch.gen_wildcard("wildcard + wildcard10") === "wildcard2"
+            @test CodeSearch.gen_wildcard(
+                    "wildcard2, wildcard3, wildcard4, wildcard5, wildcard6, wildcard7, wildcard8, wildcard9, wildcard10"
+                ) === "wildcard11"
         end
 
         @testset "is_match!" begin
-            holes = CodeSearch.SyntaxNode[]
-            @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b")) === true
-            @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "b + b")) === false
-            @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b + c")) === false
-            @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + (b + c)")) === true
-            @test Expr.(holes) == [:b, :(b + c)]
+            wildcards = CodeSearch.SyntaxNode[]
+            @test CodeSearch.is_match!(wildcards, :wildcard, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b")) === true
+            @test CodeSearch.is_match!(wildcards, :wildcard, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "b + b")) === false
+            @test CodeSearch.is_match!(wildcards, :wildcard, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b + c")) === false
+            @test CodeSearch.is_match!(wildcards, :wildcard, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + (b + c)")) === true
+            @test Expr.(wildcards) == [:b, :(b + c)]
         end
 
         @testset "find_matches" begin
@@ -44,16 +44,16 @@ using Aqua
             @test_throws UndefVarError pattern("a + * + b")
         end
 
-        @testset "prepare_holes" begin
-            @test CodeSearch.prepare_holes("a*b") == ("a hole b", "hole")
-            @test CodeSearch.prepare_holes("a*holeb") == ("a hole1 holeb", "hole1")
-            @test CodeSearch.prepare_holes("a*hole*b + hole1") == ("a hole2 hole hole2 b + hole1", "hole2")
-            @test CodeSearch.prepare_holes("a*b\\*chole1") == ("a hole2 b*chole1", "hole2")
-            @test CodeSearch.prepare_holes("1 \\* 2") == ("1 * 2", "hole")
-            @test CodeSearch.prepare_holes("1 \\ * 2") == ("1 \\ hole 2", "hole")
-            @test CodeSearch.prepare_holes("1 \\\\* 2") == ("1 \\* 2", "hole")
-            @test CodeSearch.prepare_holes("1 * 2") == ("1 hole 2", "hole")
-            @test CodeSearch.prepare_holes("function *() = * + hole12") == ("function hole2() = hole2 + hole12", "hole2")
+        @testset "prepare_wildcards" begin
+            @test CodeSearch.prepare_wildcards("a*b") == ("a wildcard b", "wildcard")
+            @test CodeSearch.prepare_wildcards("a*wildcardb") == ("a wildcard1 wildcardb", "wildcard1")
+            @test CodeSearch.prepare_wildcards("a*wildcard*b + wildcard1") == ("a wildcard2 wildcard wildcard2 b + wildcard1", "wildcard2")
+            @test CodeSearch.prepare_wildcards("a*b\\*cwildcard1") == ("a wildcard2 b*cwildcard1", "wildcard2")
+            @test CodeSearch.prepare_wildcards("1 \\* 2") == ("1 * 2", "wildcard")
+            @test CodeSearch.prepare_wildcards("1 \\ * 2") == ("1 \\ wildcard 2", "wildcard")
+            @test CodeSearch.prepare_wildcards("1 \\\\* 2") == ("1 \\* 2", "wildcard")
+            @test CodeSearch.prepare_wildcards("1 * 2") == ("1 wildcard 2", "wildcard")
+            @test CodeSearch.prepare_wildcards("function *() = * + wildcard12") == ("function wildcard2() = wildcard2 + wildcard12", "wildcard2")
         end
     end
 
@@ -141,8 +141,8 @@ using Aqua
             end
         end
         @testset "showing patterns" begin
-            x = j"a + (b + *) \* hole"
-            @test repr(eval(Meta.parse(repr(x)))) == repr(x) == "j\"a + (b + *) \\* hole\""
+            x = j"a + (b + *) \* wildcard"
+            @test repr(eval(Meta.parse(repr(x)))) == repr(x) == "j\"a + (b + *) \\* wildcard\""
             @test x == eval(Meta.parse(repr(x)))
             @test x !== eval(Meta.parse(repr(x)))
         end
