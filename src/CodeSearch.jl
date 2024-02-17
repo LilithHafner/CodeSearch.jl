@@ -4,6 +4,52 @@ using JuliaSyntax
 
 export code_search_pattern, @j_str, indices
 
+
+############################################################################################
+#### Data structures and constructors (Match, Pattern, code_search_pattern, and @j_str) ####
+############################################################################################
+
+"""
+    Match <: AbstractMatch
+
+Represents a single match to a `Pattern`, typically created from the `eachmatch` or
+`match` function.
+
+The `syntax_node` field stores the `JuliaSyntax.SyntaxNode` that matched the
+`Pattern`, and the `captures` field stores the `SyntaxNode`s that fill match each
+wildcard in the `Pattern`, indexed in the order they appear in the `Pattern`.
+
+Methods that accept `Match` objects are defined for [`Expr`], [`JuliaSyntax.SyntaxNode`],
+[`String`], [`indices`](@ref), and [`getindex`].
+
+# Examples
+```jldoctest
+julia> m = match(j"√*", "2 + √ x")
+CodeSearch.Match((call-pre √ x), captures=[x])
+
+julia> m.captures
+1-element Vector{JuliaSyntax.SyntaxNode}:
+ x
+
+julia> m[1]
+line:col│ tree        │ file_name
+   1:7  │x
+
+julia> Expr(m)
+:(√x)
+
+julia> String(m)
+" √ x"
+
+julia> CodeSearch.indices(m)
+4:9
+```
+"""
+struct Match <: AbstractMatch
+    syntax_node::SyntaxNode
+    captures::Vector{SyntaxNode}
+end
+
 """
     Pattern <: AbstractPattern
 
@@ -25,17 +71,49 @@ struct Pattern <: AbstractPattern
 end
 
 """
-    gen_hole(str, prefix="hole")
+    j"str" -> Pattern
 
-return a string starting with `prefix` that is not in `str`
+Construct a `Pattern`, such as j"a + (b + *)" that matches Julia code.
+
+The `*` character is a wildcard that matches any expression, and matching is performed
+insensitive of whitespace and comments. Only the characters `"` and `*` must be escaped,
+and interpolation is not supported.
+
+See [`code_search_pattern`](@ref) for the function version of this macro if you need
+interpolation.
+
+# Examples
+```jldoctest
+julia> j"a + (b + *)"
+j"a + (b + *)"
+
+julia> match(j"(b + *)", "(b + 6)")
+CodeSearch.Match((call-i b + 6), holes=[6])
+
+julia> match(j"(* + *) \\* *", "(a+b)*(d+e)")
+CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), holes=[a, b, (call-i d + e)])
+
+julia> findall(j"* + *", "(a+b)+(d+e)")
+3-element Vector{UnitRange{Int64}}:
+ 1:11
+ 2:4
+ 8:10
+
+julia> match(j"(* + *) \\* *", "(a-b)*(d+e)") # no match -> returns nothing
+
+julia> occursin(j"(* + *) \\* *", "(a-b)*(d+e)")
+false
+
+julia> eachmatch(j"*(\\"hello world\\")", "print(\\"hello world\\"), display(\\"hello world\\")")
+2-element Vector{CodeSearch.Match}:
+ Match((call print (string "hello world")), holes=[print])
+ Match((call display (string "hello world")), holes=[display])
+
+julia> count(j"*(*)", "a(b(c))")
+2
 """
-function gen_hole(str, prefix="hole")
-    occursin(prefix, str) || return prefix
-    i = 1
-    while occursin("$prefix$i", str)
-        i += 1
-    end
-    "$prefix$i"
+macro j_str(str)
+    code_search_pattern(str)
 end
 
 """
@@ -88,91 +166,23 @@ function code_search_pattern(str::AbstractString)
     Pattern(syntax_node, Symbol(hole_symbol))
 end
 
-"""
-    j"str" -> Pattern
 
-Construct a `Pattern`, such as j"a + (b + *)" that matches Julia code.
-
-The `*` character is a wildcard that matches any expression, and matching is performed
-insensitive of whitespace and comments. Only the characters `"` and `*` must be escaped,
-and interpolation is not supported.
-
-See [`code_search_pattern`](@ref) for the function version of this macro if you need
-interpolation.
-
-# Examples
-```jldoctest
-julia> j"a + (b + *)"
-j"a + (b + *)"
-
-julia> match(j"(b + *)", "(b + 6)")
-CodeSearch.Match((call-i b + 6), holes=[6])
-
-julia> match(j"(* + *) \\* *", "(a+b)*(d+e)")
-CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), holes=[a, b, (call-i d + e)])
-
-julia> findall(j"* + *", "(a+b)+(d+e)")
-3-element Vector{UnitRange{Int64}}:
- 1:11
- 2:4
- 8:10
-
-julia> match(j"(* + *) \\* *", "(a-b)*(d+e)") # no match -> returns nothing
-
-julia> occursin(j"(* + *) \\* *", "(a-b)*(d+e)")
-false
-
-julia> eachmatch(j"*(\\"hello world\\")", "print(\\"hello world\\"), display(\\"hello world\\")")
-2-element Vector{CodeSearch.Match}:
- Match((call print (string "hello world")), holes=[print])
- Match((call display (string "hello world")), holes=[display])
-
-julia> count(j"*(*)", "a(b(c))")
-2
-"""
-macro j_str(str)
-    code_search_pattern(str)
-end
+############################################################################################
+####  Implmenetation of primary search functionality                                    ####
+############################################################################################
 
 """
-    Match <: AbstractMatch
+    gen_hole(str, prefix="hole")
 
-Represents a single match to a `Pattern`, typically created from the `eachmatch` or
-`match` function.
-
-The `syntax_node` field stores the `JuliaSyntax.SyntaxNode` that matched the
-`Pattern`, and the `captures` field stores the `SyntaxNode`s that fill match each
-wildcard in the `Pattern`, indexed in the order they appear in the `Pattern`.
-
-Methods that accept `Match` objects are defined for [`Expr`], [`JuliaSyntax.SyntaxNode`],
-[`String`], [`indices`](@ref), and [`getindex`].
-
-# Examples
-```jldoctest
-julia> m = match(j"√*", "2 + √ x")
-CodeSearch.Match((call-pre √ x), captures=[x])
-
-julia> m.captures
-1-element Vector{JuliaSyntax.SyntaxNode}:
- x
-
-julia> m[1]
-line:col│ tree        │ file_name
-   1:7  │x
-
-julia> Expr(m)
-:(√x)
-
-julia> String(m)
-" √ x"
-
-julia> CodeSearch.indices(m)
-4:9
-```
+return a string starting with `prefix` that is not in `str`
 """
-struct Match <: AbstractMatch
-    syntax_node::SyntaxNode
-    captures::Vector{SyntaxNode}
+function gen_hole(str, prefix="hole")
+    occursin(prefix, str) || return prefix
+    i = 1
+    while occursin("$prefix$i", str)
+        i += 1
+    end
+    "$prefix$i"
 end
 
 find_matches(needle::Pattern, haystack::AbstractString) =
@@ -210,6 +220,10 @@ maybe_first(x) = isempty(x) ? nothing : first(x)
 maybe_last(x) = isempty(x) ? nothing : last(x)
 
 
+############################################################################################
+### Methods for generic functions (and the definition of the generic function `indices`) ###
+############################################################################################
+
 """
     indices(m)
 
@@ -242,16 +256,12 @@ Base.String(m::Match) = m.syntax_node.data.source.code[indices(m.syntax_node)]
 Base.getindex(m::Match, i::Int) = m.captures[i]
 
 Base.eachmatch(needle::Pattern, haystack) = find_matches(needle, haystack)
-Base.match(needle::Pattern, haystack) = maybe_first(eachmatch(needle, haystack))
-Base.findall(needle::Pattern, haystack) = indices.(eachmatch(needle, haystack))
-Base.occursin(needle::Pattern, haystack) = !isempty(eachmatch(needle, haystack))
 
+Base.match(needle::Pattern, haystack) = maybe_first(eachmatch(needle, haystack))
+Base.occursin(needle::Pattern, haystack) = !isempty(eachmatch(needle, haystack))
+Base.findall(needle::Pattern, haystack) = indices.(eachmatch(needle, haystack))
 Base.findfirst(needle::Pattern, haystack) = maybe_first(findall(needle, haystack))
 Base.findlast(needle::Pattern, haystack) = maybe_last(findall(needle, haystack))
-
-# Narrow type signatures to avoid ambiguity with
-# count(f, A::Union{Base.AbstractBroadcasted, AbstractArray}; dims, init)
-# count(t::Union{AbstractPattern, AbstractChar, AbstractString}, s::AbstractString; overlap)
 Base.count(needle::Pattern, haystack) = length(eachmatch(needle, haystack))
 
 # Resolve Ambiguities
@@ -282,9 +292,8 @@ function Base.show(io::IO, m::Match)
 end
 
 # Equality and hashing
-
-# 10x slower than the default implementation (object identity), but it's semantically correct and folks
-# can always use IdDict in the highly unlikley event that this is a bottleneck.
+# 10x slower than the default implementation (object identity) but it's semantically correct
+# and folks can always use IdDict in the highly unlikley event that this is a bottleneck.
 function Base.:(==)(a::Pattern, b::Pattern)
     kind(a.syntax_node) == kind(b.syntax_node) || return false
     if kind(a.syntax_node) == K"Identifier"
