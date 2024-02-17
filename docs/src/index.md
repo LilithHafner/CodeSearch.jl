@@ -90,8 +90,8 @@ to their generic docstrings. Here are some of those supported functions:
 - `eachmatch`
 - `match`
 - `occursin`
-- `startswith` [TODO]
-- `endswith` [TODO]
-- `findnext` [TODO]
-- `findprev` [TODO]
+<!-- - `startswith` [TODO] -->
+<!-- - `endswith` [TODO] -->
+<!-- - `findnext` [TODO] -->
+<!-- - `findprev` [TODO] -->
 
