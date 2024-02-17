@@ -64,10 +64,10 @@ using Aqua
 
     @testset "is_match!" begin
         holes = CodeSearch.SyntaxNode[]
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b")) === true
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "b + b")) === false
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b + c")) === false
-        @test CodeSearch.is_match!(holes, :hole, j"a + *".syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + (b + c)")) === true
+        @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b")) === true
+        @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "b + b")) === false
+        @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b + c")) === false
+        @test CodeSearch.is_match!(holes, :hole, j"a + *"._internal.syntax_node, CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + (b + c)")) === true
         @test Expr.(holes) == [:b, :(b + c)]
     end
 
@@ -77,14 +77,14 @@ using Aqua
 
     @testset "j_str" begin
         @test repr(j"* !== nothing") == "j\"* !== nothing\"" # Start with *
-        @test Expr(j"a\*b".syntax_node) == :(a*b)
-        @test_broken Expr(j"a*b".syntax_node) != :aholeb # but it still reprs fine :(!
+        @test Expr(j"a\*b"._internal.syntax_node) == :(a*b)
+        @test_broken Expr(j"a*b"._internal.syntax_node) != :aholeb # but it still reprs fine :(!
     end
 
     @testset "equality and hashing" begin
         a = j"a + *"
         b = j"a + *"
-        c = CodeSearch.Pattern(CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b"), :b)
+        c = CodeSearch._Pattern(CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b"), :b)
         d = j"a + b"
 
         @test a == b == c != d

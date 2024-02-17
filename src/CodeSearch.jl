@@ -1,9 +1,9 @@
 module CodeSearch
 
-using JuliaSyntax
+using JuliaSyntax, Compat
 
 export code_search_pattern, @j_str, indices
-
+@compat public Match, Pattern
 
 ############################################################################################
 #### Data structures and constructors (Match, Pattern, code_search_pattern, and @j_str) ####
@@ -59,15 +59,17 @@ represented by the symbol stored in the `hole` field. For example, the expressio
 `a + (b + *)` might be stored as `Pattern((call-i a + (call-i b + hole)), :hole)`. When
 matching `Pattern`s, it is possilbe for multiple matches to nest within one another.
 
-See [`@j_str`](@ref) and [`code_search_pattern`](@ref) for the public API for creating
+The fields and constructor of this struct are not part of the public API. See
+[`@j_str`](@ref) and [`code_search_pattern`](@ref) for the public API for creating
 `Pattern`s.
 
 Methods accepting `Pattern` objects are defined for `eachmatch`, `match`,
 `findall`, `findfirst`, `findlast`, `occursin`, and `count`.
 """
 struct Pattern <: AbstractPattern
-    syntax_node::SyntaxNode
-    hole_symbol::Symbol
+    _internal::NamedTuple{(:syntax_node, :hole_symbol), Tuple{SyntaxNode, Symbol}}
+    global _Pattern
+    _Pattern(syntax_node, hole_symbol) = new((; syntax_node, hole_symbol))
 end
 
 """
@@ -163,7 +165,7 @@ function code_search_pattern(str::AbstractString)
     if kind(syntax_node) == K"toplevel" && length(syntax_node.children) == 1
         syntax_node = only(syntax_node.children)
     end
-    Pattern(syntax_node, Symbol(hole_symbol))
+    _Pattern(syntax_node, Symbol(hole_symbol))
 end
 
 
@@ -191,7 +193,7 @@ find_matches(needle::Pattern, haystack::AbstractString) =
 find_matches(needle::Pattern, haystack::SyntaxNode) =
     find_matches!(Match[], SyntaxNode[], needle, haystack)
 function find_matches!(matches, captures, needle::Pattern, haystack::SyntaxNode)
-    if is_match!(empty!(captures), needle.hole_symbol, needle.syntax_node, haystack)
+    if is_match!(empty!(captures), needle._internal.hole_symbol, needle._internal.syntax_node, haystack)
         push!(matches, Match(haystack, copy(captures)))
     end
     if haystack.children !== nothing
@@ -272,8 +274,8 @@ Base.findall(needle::Pattern, haystack::AbstractString) = indices.(eachmatch(nee
 
 function Base.show(io::IO, m::Pattern)
     print(io, "j\"")
-    str = sprint(print, Expr(m.syntax_node))
-    str = replace(str, '*' => "\\*", string(m.hole_symbol) => '*')
+    str = sprint(print, Expr(m._internal.syntax_node))
+    str = replace(str, '*' => "\\*", string(m._internal.hole_symbol) => '*')
     print(io, str)
     print(io, "\"")
 end
@@ -295,25 +297,25 @@ end
 # 10x slower than the default implementation (object identity) but it's semantically correct
 # and folks can always use IdDict in the highly unlikley event that this is a bottleneck.
 function Base.:(==)(a::Pattern, b::Pattern)
-    kind(a.syntax_node) == kind(b.syntax_node) || return false
-    if kind(a.syntax_node) == K"Identifier"
-        a_hole = a.syntax_node.data.val == a.hole_symbol
-        b_hole = b.syntax_node.data.val == b.hole_symbol
+    kind(a._internal.syntax_node) == kind(b._internal.syntax_node) || return false
+    if kind(a._internal.syntax_node) == K"Identifier"
+        a_hole = a._internal.syntax_node.data.val == a._internal.hole_symbol
+        b_hole = b._internal.syntax_node.data.val == b._internal.hole_symbol
         a_hole && b_hole && return true
         a_hole != b_hole && return false
     end
-    a.syntax_node.data.val == b.syntax_node.data.val || return false
-    a.syntax_node.children === nothing && b.syntax_node.children === nothing && return true
-    a.syntax_node.children === nothing && return false
-    b.syntax_node.children === nothing && return false
-    axes(a.syntax_node.children) == axes(b.syntax_node.children) || return false
-    all(Pattern(a_child, a.hole_symbol) == Pattern(b_child, b.hole_symbol) for
-        (a_child,b_child) in zip(a.syntax_node.children, b.syntax_node.children))
+    a._internal.syntax_node.data.val == b._internal.syntax_node.data.val || return false
+    a._internal.syntax_node.children === nothing && b._internal.syntax_node.children === nothing && return true
+    a._internal.syntax_node.children === nothing && return false
+    b._internal.syntax_node.children === nothing && return false
+    axes(a._internal.syntax_node.children) == axes(b._internal.syntax_node.children) || return false
+    all(_Pattern(a_child, a._internal.hole_symbol) == _Pattern(b_child, b._internal.hole_symbol) for
+        (a_child,b_child) in zip(a._internal.syntax_node.children, b._internal.syntax_node.children))
 end
 
 const PATTERN_HASH = Sys.WORD_SIZE == 64 ? 0xc75fd9c0b0129c95 : 0x5770933b
 const HOLE_HASH = Sys.WORD_SIZE == 64 ? 0x12e261218f8c027e : 0xf5e30575
-Base.hash(p::Pattern, h::UInt) = _hash(p.hole_symbol, p.syntax_node, hash(h, PATTERN_HASH))
+Base.hash(p::Pattern, h::UInt) = _hash(p._internal.hole_symbol, p._internal.syntax_node, hash(h, PATTERN_HASH))
 function _hash(hole_symbol, syntax_node, h)
     kind(syntax_node) == K"Identifier" && syntax_node.data.val == hole_symbol && return hash(h, HOLE_HASH)
     h = hash(kind(syntax_node), h)
