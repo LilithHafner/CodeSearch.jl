@@ -19,8 +19,8 @@ The `syntax_node` field stores the `JuliaSyntax.SyntaxNode` that matched the
 `Pattern`, and the `captures` field stores the `SyntaxNode`s that fill match each
 wildcard in the `Pattern`, indexed in the order they appear in the `Pattern`.
 
-Methods that accept `Match` objects are defined for [`Expr`], [`JuliaSyntax.SyntaxNode`],
-[`AbstractString`], [`indices`](@ref), and [`getindex`].
+Methods that accept `Match` objects are defined for `Expr`, `JuliaSyntax.SyntaxNode`,
+`AbstractString`, [`indices`](@ref), and `getindex`.
 
 # Examples
 ```jldoctest
@@ -90,10 +90,10 @@ julia> j"a + (b + *)"
 j"a + (b + *)"
 
 julia> match(j"(b + *)", "(b + 6)")
-CodeSearch.Match((call-i b + 6), holes=[6])
+CodeSearch.Match((call-i b + 6), captures=[6])
 
 julia> match(j"(* + *) \\* *", "(a+b)*(d+e)")
-CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), holes=[a, b, (call-i d + e)])
+CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), captures=[a, b, (call-i d + e)])
 
 julia> findall(j"* + *", "(a+b)+(d+e)")
 3-element Vector{UnitRange{Int64}}:
@@ -108,11 +108,12 @@ false
 
 julia> eachmatch(j"*(\\"hello world\\")", "print(\\"hello world\\"), display(\\"hello world\\")")
 2-element Vector{CodeSearch.Match}:
- Match((call print (string "hello world")), holes=[print])
- Match((call display (string "hello world")), holes=[display])
+ Match((call print (string "hello world")), captures=[print])
+ Match((call display (string "hello world")), captures=[display])
 
 julia> count(j"*(*)", "a(b(c))")
 2
+```
 """
 macro j_str(str)
     pattern(str)
@@ -131,10 +132,10 @@ julia> pattern("a + (b + *)")
 j"a + (b + *)"
 
 julia> match(pattern("(b + *)"), "(b + 6)")
-CodeSearch.Match((call-i b + 6), holes=[6])
+CodeSearch.Match((call-i b + 6), captures=[6])
 
 julia> match(pattern("(* + *) \\\\* *"), "(a+b)*(d+e)")
-CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), holes=[a, b, (call-i d + e)])
+CodeSearch.Match((call-i (call-i a + b) * (call-i d + e)), captures=[a, b, (call-i d + e)])
 
 julia> findall(pattern("* + *"), "(a+b)+(d+e)")
 3-element Vector{UnitRange{Int64}}:
@@ -149,11 +150,12 @@ false
 
 julia> eachmatch(pattern("*(\\"hello world\\")"), "print(\\"hello world\\"), display(\\"hello world\\")")
 2-element Vector{CodeSearch.Match}:
- Match((call print (string "hello world")), holes=[print])
- Match((call display (string "hello world")), holes=[display])
+ Match((call print (string "hello world")), captures=[print])
+ Match((call display (string "hello world")), captures=[display])
 
 julia> count(pattern("*(*)"), "a(b(c))")
 2
+```
 """
 function pattern(str::AbstractString)
     str, hole_str = prepare_holes(str)
@@ -282,6 +284,7 @@ line:col│ tree        │ file_name
 
 julia> indices(c)
 7:7
+```
 """
 function indices end
 
