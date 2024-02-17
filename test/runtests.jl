@@ -157,7 +157,7 @@ using Aqua
         end
         @testset "equality and hashing" begin
             a = j"1 + *"
-            b = j"1 + *"
+            b = j"1+*"
             c = CodeSearch._Pattern(CodeSearch.parsestmt(CodeSearch.SyntaxNode, "1 + b"), :b)
             d = j"1 + b"
 
