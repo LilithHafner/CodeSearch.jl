@@ -258,8 +258,6 @@ Base.count(needle::Pattern, haystack) = length(eachmatch(needle, haystack))
 Base.count(needle::Pattern, haystack::AbstractString) = length(eachmatch(needle, haystack))
 Base.findall(needle::Pattern, haystack::AbstractString) = indices.(eachmatch(needle, haystack))
 
-# TODO: semantic equality between Patterns
-
 # Display
 
 function Base.show(io::IO, m::Pattern)
@@ -281,6 +279,42 @@ function Base.show(io::IO, m::Match)
         show(IOContext(io, :typeinfo=>Vector{SyntaxNode}), m.captures)
     end
     print(io, ")")
+end
+
+# Equality and hashing
+
+# 10x slower than the default implementation (object identity), but it's semantically correct and folks
+# can always use IdDict in the highly unlikley event that this is a bottleneck.
+function Base.:(==)(a::Pattern, b::Pattern)
+    kind(a.syntax_node) == kind(b.syntax_node) || return false
+    if kind(a.syntax_node) == K"Identifier"
+        a_hole = a.syntax_node.data.val == a.hole_symbol
+        b_hole = b.syntax_node.data.val == b.hole_symbol
+        a_hole && b_hole && return true
+        a_hole != b_hole && return false
+    end
+    a.syntax_node.data.val == b.syntax_node.data.val || return false
+    a.syntax_node.children === nothing && b.syntax_node.children === nothing && return true
+    a.syntax_node.children === nothing && return false
+    b.syntax_node.children === nothing && return false
+    axes(a.syntax_node.children) == axes(b.syntax_node.children) || return false
+    all(Pattern(a_child, a.hole_symbol) == Pattern(b_child, b.hole_symbol) for
+        (a_child,b_child) in zip(a.syntax_node.children, b.syntax_node.children))
+end
+
+const PATTERN_HASH = Sys.WORD_SIZE == 64 ? 0xc75fd9c0b0129c95 : 0x5770933b
+const HOLE_HASH = Sys.WORD_SIZE == 64 ? 0x12e261218f8c027e : 0xf5e30575
+Base.hash(p::Pattern, h::UInt) = _hash(p.hole_symbol, p.syntax_node, hash(h, PATTERN_HASH))
+function _hash(hole_symbol, syntax_node, h)
+    kind(syntax_node) == K"Identifier" && syntax_node.data.val == hole_symbol && return hash(h, HOLE_HASH)
+    h = hash(kind(syntax_node), h)
+    h = hash(syntax_node.data.val, h)
+    syntax_node.children === nothing && return h
+    h = hash(length(syntax_node.children), h)
+    for child in syntax_node.children
+        h = _hash(hole_symbol, child, h)
+    end
+    h
 end
 
 end # module

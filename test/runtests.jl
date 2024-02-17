@@ -58,8 +58,8 @@ using Aqua
     @testset "show" begin
         x = j"a + (b + *) \* hole"
         @test repr(eval(Meta.parse(repr(x)))) == repr(x) == "j\"a + (b + *) \\* hole\""
-        @test Expr(x.syntax_node) == Expr(eval(Meta.parse(repr(x))).syntax_node)
-        @test x.hole_symbol == eval(Meta.parse(repr(x))).hole_symbol
+        @test x == eval(Meta.parse(repr(x)))
+        @test x !== eval(Meta.parse(repr(x)))
     end
 
     @testset "is_match!" begin
@@ -79,5 +79,17 @@ using Aqua
         @test repr(j"* !== nothing") == "j\"* !== nothing\"" # Start with *
         @test Expr(j"a\*b".syntax_node) == :(a*b)
         @test_broken Expr(j"a*b".syntax_node) != :aholeb # but it still reprs fine :(!
+    end
+
+    @testset "equality and hashing" begin
+        a = j"a + *"
+        b = j"a + *"
+        c = CodeSearch.Pattern(CodeSearch.parsestmt(CodeSearch.SyntaxNode, "a + b"), :b)
+        d = j"a + b"
+
+        @test a == b == c != d
+        @test hash(a) == hash(b) == hash(c) != hash(d)
+        @test isequal(a, b)
+        @test !isequal(a, d)
     end
 end
