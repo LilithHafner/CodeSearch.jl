@@ -62,10 +62,3 @@ jobs:
       - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run doctests
-        shell: julia --project=docs --color=yes {0}
-        run: |
-          using Documenter: DocMeta, doctest
-          using CodeSearch
-          DocMeta.setdocmeta!(CodeSearch, :DocTestSetup, :(using CodeSearch); recursive=true)
-          doctest(CodeSearch)
