@@ -44,7 +44,7 @@ end
 Function version of the `j"str"` macro. See [`@j_str`](@ref) for documentation.
 
 # Examples
-```julia
+```jldoctest
 julia> code_search_pattern("a + (b + *)")
 j"a + (b + *)"
 
@@ -101,7 +101,7 @@ See [`code_search_pattern`](@ref) for the function version of this macro if you 
 interpolation.
 
 # Examples
-```julia
+```jldoctest
 julia> j"a + (b + *)"
 j"a + (b + *)"
 
@@ -148,7 +148,7 @@ Methods that accept `Match` objects are defined for [`Expr`], [`JuliaSyntax.Synt
 [`String`], [`indices`](@ref), and [`getindex`].
 
 # Examples
-```julia
+```jldoctest
 julia> m = match(j"√*", "2 + √ x")
 CodeSearch.Match((call-pre √ x), captures=[x])
 
@@ -216,7 +216,7 @@ maybe_last(x) = isempty(x) ? nothing : last(x)
 Return the indices of a source datastructure that a view is derived from.
 
 # Examples
-```julia
+```jldoctest
 julia> m = match(j"x/*", "4 + x/2")
 CodeSearch.Match((call-i x / 2), captures=[2])
 

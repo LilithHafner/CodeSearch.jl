@@ -17,6 +17,9 @@ makedocs(;
     pages=[
         "Home" => "index.md",
     ],
+    doctestfilters=[
+        r"ree \s+│ file_na", # SyntaxNode display is width dependent
+    ]
 )
 
 deploydocs(;
