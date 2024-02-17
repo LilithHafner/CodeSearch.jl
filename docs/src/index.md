@@ -15,7 +15,7 @@ julia> j"a + b" == j"a+b"
 true
 
 julia> findfirst(j"a+b", "sqrt(a +b)/(a+ b)")
-6:9
+6:8
 ```
 
 The other key feature in this package is wildcard matching. You can use the character `*` to
