@@ -64,3 +64,9 @@ julia> Expr(only(m.captures))
     `AbstractString` via constructors, index into the captures directly with `getindex`, or
     extract the indices in the original string that match the capture with
     `indices`.
+
+## Credits
+
+Lilith Hafner is the original author of this package. CodeSearch.jl would not exist without
+Claire Foster's [JuliaSyntax](https://github.com/JuliaLang/JuliaSyntax.jl/) which does all
+the parsing and provides appropriate data structures to represent parsed code.

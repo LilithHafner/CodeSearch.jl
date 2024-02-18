@@ -126,3 +126,9 @@ julia> str = read("src/CodeSearch.jl", String);
 
 julia> node = parseall(SyntaxNode, str, ignore_errors=true);
 ```
+
+## Credits
+
+Lilith Hafner is the original author of this package. CodeSearch.jl would not exist without
+Claire Foster's [JuliaSyntax](https://github.com/JuliaLang/JuliaSyntax.jl/) which does all
+the parsing and provides appropriate data structures to represent parsed code.
