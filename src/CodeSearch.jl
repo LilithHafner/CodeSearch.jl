@@ -244,7 +244,9 @@ function find_matches!(matches, captures, needle::Pattern, haystack::SyntaxNode)
         push!(matches, Match(haystack, copy(captures)))
     end
     if haystack.children !== nothing
-        for child in haystack.children
+        # Type annotation improves performance because the compiler cannot infer this
+        # type despite the fieldtype of children being Union{Nothing, Vector{SyntaxNode}}.
+        for child in haystack.children::Vector{SyntaxNode}
             find_matches!(matches, captures, needle, child)
         end
     end
@@ -257,12 +259,25 @@ function is_match!(captures, wildcard_symbol::Symbol, needle::SyntaxNode, haysta
         return true
     end
     kind(needle) == kind(haystack) || return false
-    needle.data.val == haystack.data.val || return false
+
+    # Use === instead of == for performance because val is typed Any but is
+    # almost always Symbol or Nothing, which use the ==(a,b) = a === b fallback.
+    # This branch hints the compiler to specialize for those types and use egality.
+    if needle.data.val isa Union{Symbol, Nothing} && haystack.data.val isa Union{Symbol, Nothing}
+        needle.data.val === haystack.data.val || return false
+    else
+        needle.data.val == haystack.data.val || return false
+    end
+
     needle.children === haystack.children && return true
     needle.children === nothing && return false
     haystack.children === nothing && return false
     axes(needle.children) == axes(haystack.children) || return false
-    all(is_match!(captures, wildcard_symbol, n, h) for (n,h) in zip(needle.children, haystack.children))
+
+    # Type annotations improve performance because the compiler cannot infer these
+    # types despite the fieldtype of children being Union{Nothing, Vector{SyntaxNode}}.
+    all(is_match!(captures, wildcard_symbol, n, h) for (n,h) in
+        zip(needle.children::Vector{SyntaxNode}, haystack.children::Vector{SyntaxNode}))
 end
 
 maybe_first(x) = isempty(x) ? nothing : first(x)
