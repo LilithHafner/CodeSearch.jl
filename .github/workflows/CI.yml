@@ -41,6 +41,9 @@ jobs:
       - uses: codecov/codecov-action@v4
         with:
           files: lcov.info
+        env:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: LilithHafner/CodeSearch.jl
   docs:
     name: Documentation
     runs-on: ubuntu-latest
