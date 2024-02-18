@@ -90,8 +90,39 @@ to their generic docstrings. Here are some of those supported functions:
 - `eachmatch`
 - `match`
 - `occursin`
-<!-- - `startswith` [TODO] -->
-<!-- - `endswith` [TODO] -->
-<!-- - `findnext` [TODO] -->
-<!-- - `findprev` [TODO] -->
 
+## Performance
+
+The code search performance bottleneck is parsing. The search itself is about 20x faster
+than parsing and similar in performance to an optimized regex library. Consequently, if you
+want high performance repeated code search, you should cache parsed SyntaxNodes and pass
+them directly to search functions.
+
+#### Benchmarks
+
+Using the [395 lines of source code of this package as of 6820e64232](https://github.com/LilithHafner/CodeSearch.jl/blob/6820e642320f803407bcbc07e691277dc4d91ae4/src/CodeSearch.jl)
+as a test case, on a 2022 M2 mac running [Asahi Linux](https://asahilinux.org/), we can see the following performance:
+
+| Operation              | Time         | Time per line | Benchmark |
+|------------------------|--------------|-------------|-------------|
+| Searching a string     | `541.0 μs` | `1.37 μs`  | `@b collect(eachmatch(j"* !== nothing", node)) seconds=1` |
+| Parsing a string       | `516.8 μs` | `1.31 μs`  | `@b parseall(SyntaxNode, str, ignore_errors=true) seconds=1` |
+| Searching a SyntaxNode | `20.9 μs`  | `53.0 ns` | `@b collect(eachmatch(j"* !== nothing", node)) seconds=1` |
+| Regex search           | `22.7 μs`  | `57.5 ns` | `@b collect(eachmatch(r".* !== nothing", str)) seconds=1` |
+
+#### Setup for benchmarks
+```julia
+shell> git clone https://github.com/LilithHafner/CodeSearch.jl CodeSearch
+[...]
+
+shell> cd CodeSearch
+
+shell> git checkout 6820e642320f803407bcbc07e691277dc4d91ae4
+[...]
+
+julia> using CodeSearch, JuliaSyntax, Chairmarks
+
+julia> str = read("src/CodeSearch.jl", String);
+
+julia> node = parseall(SyntaxNode, str, ignore_errors=true);
+```
